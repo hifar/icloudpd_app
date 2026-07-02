@@ -15,6 +15,7 @@
 
 - 输入备份年月、iCloud 账户名、icloudpd 可执行文件路径和备份目标路径
 - 支持两种筛选方式：按月份、按日期范围
+- 支持界面中英文切换（默认英文）
 - 固定追加参数：--folder-structure "{:%Y/%m}"
 - 可选参数：--domain cn
 - 固定追加参数：--mfa-provider console

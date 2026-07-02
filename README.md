@@ -17,6 +17,7 @@ This project depends on icloudpd and does not bundle icloudpd itself.
 
 - Input year-month, iCloud username, icloudpd executable path, and backup target path
 - Supports two filter modes: by month or by date range
+- UI language switch: English/Chinese (default is English)
 - Always adds folder structure argument: --folder-structure "{:%Y/%m}"
 - Optional domain argument: --domain cn
 - Always adds MFA provider argument: --mfa-provider console
