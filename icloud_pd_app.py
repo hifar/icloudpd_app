@@ -20,6 +20,9 @@ class ICloudPDApp:
         self.process: subprocess.Popen | None = None
 
         self.year_month_var = tk.StringVar()
+        self.filter_mode_var = tk.StringVar(value="month")
+        self.start_date_var = tk.StringVar()
+        self.end_date_var = tk.StringVar()
         self.icloud_exe_var = tk.StringVar(value=DEFAULT_ICLOUD_EXE)
         self.target_dir_var = tk.StringVar(value=DEFAULT_TARGET_DIR)
         self.username_var = tk.StringVar()
@@ -39,26 +42,54 @@ class ICloudPDApp:
 
         form.columnconfigure(1, weight=1)
 
-        ttk.Label(form, text="备份年月 (YYYY-MM)").grid(row=0, column=0, sticky="w", pady=4)
-        ttk.Entry(form, textvariable=self.year_month_var).grid(row=0, column=1, sticky="ew", pady=4)
+        ttk.Label(form, text="筛选方式").grid(row=0, column=0, sticky="w", pady=4)
+        filter_frame = ttk.Frame(form)
+        filter_frame.grid(row=0, column=1, sticky="w", pady=4)
+        ttk.Radiobutton(
+            filter_frame,
+            text="按月份",
+            value="month",
+            variable=self.filter_mode_var,
+            command=self._on_filter_mode_change,
+        ).pack(side="left", padx=(0, 14))
+        ttk.Radiobutton(
+            filter_frame,
+            text="按日期范围",
+            value="date_range",
+            variable=self.filter_mode_var,
+            command=self._on_filter_mode_change,
+        ).pack(side="left")
 
-        ttk.Label(form, text="iCloud 可执行路径").grid(row=1, column=0, sticky="w", pady=4)
-        ttk.Entry(form, textvariable=self.icloud_exe_var).grid(row=1, column=1, sticky="ew", pady=4)
+        self.year_month_entry = ttk.Entry(form, textvariable=self.year_month_var)
+        self.year_month_entry.grid(row=1, column=1, sticky="ew", pady=4)
 
-        ttk.Label(form, text="备份目标路径").grid(row=2, column=0, sticky="w", pady=4)
-        ttk.Entry(form, textvariable=self.target_dir_var).grid(row=2, column=1, sticky="ew", pady=4)
+        ttk.Label(form, text="备份年月 (YYYY-MM)").grid(row=1, column=0, sticky="w", pady=4)
 
-        ttk.Label(form, text="iCloud 账户名").grid(row=3, column=0, sticky="w", pady=4)
-        ttk.Entry(form, textvariable=self.username_var).grid(row=3, column=1, sticky="ew", pady=4)
+        ttk.Label(form, text="开始日期 (YYYY-MM-DD)").grid(row=2, column=0, sticky="w", pady=4)
+        self.start_date_entry = ttk.Entry(form, textvariable=self.start_date_var)
+        self.start_date_entry.grid(row=2, column=1, sticky="ew", pady=4)
+
+        ttk.Label(form, text="结束日期 (YYYY-MM-DD)").grid(row=3, column=0, sticky="w", pady=4)
+        self.end_date_entry = ttk.Entry(form, textvariable=self.end_date_var)
+        self.end_date_entry.grid(row=3, column=1, sticky="ew", pady=4)
+
+        ttk.Label(form, text="iCloud 可执行路径").grid(row=4, column=0, sticky="w", pady=4)
+        ttk.Entry(form, textvariable=self.icloud_exe_var).grid(row=4, column=1, sticky="ew", pady=4)
+
+        ttk.Label(form, text="备份目标路径").grid(row=5, column=0, sticky="w", pady=4)
+        ttk.Entry(form, textvariable=self.target_dir_var).grid(row=5, column=1, sticky="ew", pady=4)
+
+        ttk.Label(form, text="iCloud 账户名").grid(row=6, column=0, sticky="w", pady=4)
+        ttk.Entry(form, textvariable=self.username_var).grid(row=6, column=1, sticky="ew", pady=4)
 
         options = ttk.Frame(form)
-        options.grid(row=4, column=0, columnspan=2, sticky="w", pady=6)
+        options.grid(row=7, column=0, columnspan=2, sticky="w", pady=6)
         ttk.Checkbutton(options, text="domain cn", variable=self.domain_cn_var).pack(side="left", padx=(0, 14))
         ttk.Checkbutton(options, text="Dry Run", variable=self.dry_run_var).pack(side="left", padx=(0, 14))
         ttk.Checkbutton(options, text="备份后删除（--keep-icloud-recent-days 0）", variable=self.delete_after_backup_var).pack(side="left")
 
         buttons = ttk.Frame(form)
-        buttons.grid(row=5, column=0, columnspan=2, sticky="w", pady=(8, 2))
+        buttons.grid(row=8, column=0, columnspan=2, sticky="w", pady=(8, 2))
         ttk.Button(buttons, text="生成命令预览", command=self.preview_command).pack(side="left", padx=(0, 8))
         self.run_btn = ttk.Button(buttons, text="运行", command=self.run_command)
         self.run_btn.pack(side="left", padx=(0, 8))
@@ -89,6 +120,13 @@ class ICloudPDApp:
             "运行后会打开真实控制台窗口，可在其中输入密码和 MFA。\n",
         )
         self.output_text.config(state="disabled")
+        self._on_filter_mode_change()
+
+    def _on_filter_mode_change(self) -> None:
+        is_month = self.filter_mode_var.get() == "month"
+        self.year_month_entry.config(state="normal" if is_month else "disabled")
+        self.start_date_entry.config(state="disabled" if is_month else "normal")
+        self.end_date_entry.config(state="disabled" if is_month else "normal")
 
     def _append_status(self, text: str) -> None:
         self.output_text.config(state="normal")
@@ -123,11 +161,41 @@ class ICloudPDApp:
         end_exclusive = last + timedelta(days=1)
         return first.isoformat(), end_exclusive.isoformat()
 
+    @staticmethod
+    def _parse_iso_date(value: str, field_name: str) -> date:
+        text = value.strip()
+        if not text:
+            raise ValueError(f"请填写{field_name}")
+        try:
+            return date.fromisoformat(text)
+        except ValueError as exc:
+            raise ValueError(f"{field_name}格式必须是 YYYY-MM-DD") from exc
+
+    def _resolve_date_filters(self) -> tuple[str, str] | tuple[None, None]:
+        mode = self.filter_mode_var.get()
+        if mode == "month":
+            year, month = self._parse_year_month(self.year_month_var.get())
+            if year is None or month is None:
+                return None, None
+            return self._month_date_range(year, month)
+
+        if mode == "date_range":
+            start = self._parse_iso_date(self.start_date_var.get(), "开始日期")
+            end = self._parse_iso_date(self.end_date_var.get(), "结束日期")
+            if end < start:
+                raise ValueError("结束日期不能早于开始日期")
+
+            # Use end date + 1 day as exclusive upper bound.
+            end_exclusive = end + timedelta(days=1)
+            return start.isoformat(), end_exclusive.isoformat()
+
+        raise ValueError("未知的筛选方式")
+
     def _build_command(self) -> list[str]:
         exe = self.icloud_exe_var.get().strip()
         target = self.target_dir_var.get().strip()
         username = self.username_var.get().strip()
-        year, month = self._parse_year_month(self.year_month_var.get())
+        skip_before, skip_after = self._resolve_date_filters()
 
         if not exe:
             raise ValueError("请填写 iCloud 可执行路径")
@@ -151,8 +219,7 @@ class ICloudPDApp:
         if self.domain_cn_var.get():
             cmd.extend(["--domain", "cn"])
 
-        if year is not None and month is not None:
-            skip_before, skip_after = self._month_date_range(year, month)
+        if skip_before is not None and skip_after is not None:
             cmd.extend(["--skip-created-before", skip_before])
             cmd.extend(["--skip-created-after", skip_after])
 

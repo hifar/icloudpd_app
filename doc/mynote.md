@@ -5,7 +5,7 @@ icloudpd为 icloud 照片备份功能
 e:\app\icloud\icloudpd-1.32.3-windows-amd64.exe ^
   --domain cn ^
   --directory "F:\_Archive\icloudphoto" ^
-  --username "hifar@icloud.com" ^
+  --username "xxx@xxxxx.com" ^
   --folder-structure "{:%Y/%m}" ^
   --skip-created-before 2025-11-01 ^
   --skip-created-after 2025-11-26 ^
